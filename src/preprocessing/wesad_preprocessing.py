@@ -147,10 +147,10 @@ def create_eda_windows(data):
     # Every 175 chest samples correspond to approximately
     # one wrist EDA sample.
     label_indices = (
-        np.arange(len(wrist_eda))
+        np.arange(len(wrist_eda))   
         * label_samples_per_eda_sample
-    )
-
+    )   
+        
     # Do not go beyond the available label array.
     valid = label_indices < len(labels)
 
