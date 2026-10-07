@@ -234,5 +234,74 @@ def main():
         print(y[0])
 
 
+# ============================================================
+# Wrist EDA + TEMP windows (aligned)
+# ============================================================
+
+def create_eda_temp_windows(data):
+    """
+    Create aligned 30-second EDA and TEMP windows.
+
+    Both signals are sampled at 4 Hz in WESAD, so windows align
+    naturally. We apply the SAME label rule to both: a window is
+    kept only if all 120 binary labels are identical (and valid).
+
+    Returns
+    -------
+    eda_windows : np.ndarray, shape (n_kept, 120)
+    temp_windows : np.ndarray, shape (n_kept, 120)
+    y : np.ndarray, shape (n_kept,)
+        0 = baseline, 1 = stress.
+
+    The three arrays are guaranteed to be row-aligned.
+    """
+
+    wrist_eda = data["signal"]["wrist"]["EDA"].reshape(-1)
+    wrist_temp = data["signal"]["wrist"]["TEMP"].reshape(-1)
+    labels = data["label"]
+
+    # Trim TEMP to match EDA length (they should already match,
+    # but WESAD occasionally has off-by-a-few differences)
+    n = min(len(wrist_eda), len(wrist_temp))
+    wrist_eda = wrist_eda[:n]
+    wrist_temp = wrist_temp[:n]
+
+    samples_per_window = WINDOW_SECONDS * WRIST_EDA_FS
+    label_samples_per_eda_sample = CHEST_FS // WRIST_EDA_FS
+
+    label_indices = np.arange(n) * label_samples_per_eda_sample
+    valid = label_indices < len(labels)
+    wrist_eda = wrist_eda[valid]
+    wrist_temp = wrist_temp[valid]
+    label_indices = label_indices[valid]
+
+    eda_labels = labels[label_indices]
+    binary_labels = get_baseline_stress_labels(eda_labels)
+
+    number_of_windows = len(wrist_eda) // samples_per_window
+
+    EDA_wins = []
+    TEMP_wins = []
+    y = []
+
+    for window_index in range(number_of_windows):
+        start = window_index * samples_per_window
+        end = start + samples_per_window
+
+        label_window = binary_labels[start:end]
+        window_label = get_window_label(label_window)
+        if window_label == -1:
+            continue
+
+        EDA_wins.append(wrist_eda[start:end])
+        TEMP_wins.append(wrist_temp[start:end])
+        y.append(window_label)
+
+    return (
+        np.asarray(EDA_wins),
+        np.asarray(TEMP_wins),
+        np.asarray(y),
+    )
+
 if __name__ == "__main__":
     main()
