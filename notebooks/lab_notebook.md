@@ -94,3 +94,37 @@ Honest self-critique:
 - [ ] After EDA is settled: add wrist TEMP features
 - [ ] Long-term: phasic EDA decomposition (cvxEDA), nSCR features
 - [ ] Long-term: the emotion-transfer half of the project
+
+-----------
+## 2026-10-08 — Reduced-feature experiment
+
+Ran `scripts/reduced_features.py`.
+
+Headline: dropping `std` from the 9-feature set improves F1 by +0.026
+with p = 0.0125 (Wilcoxon). 9/15 subjects improved, 1 got worse,
+5 unchanged. This is a REAL effect, not noise.
+
+Also: 3 features (mean, std, mean_absolute_change) match the 9-feature
+baseline within 0.005 F1. The other 6 features are dead weight.
+
+Interesting: `mean` alone gets F1 = 0.577 with std ±0.37. Enormous
+variance. So central EDA level alone is weak — dispersion matters.
+
+And: `slope` (temporal trend) is worse than `mean_absolute_change`
+(rate of change). This means the model cares about local dynamics,
+not global direction. Makes sense physiologically — SCR events
+are sharp, not gradual.
+
+Decision: canonical feature set = {mean, std, mean_absolute_change}.
+
+Remaining questions:
+- Why does std hurt the RBF SVM? Is it a scaling issue? RBF SVM
+  uses distance in feature space; std has a different scale and
+  distribution from mean. Might be hurting the kernel's geometry.
+  Interesting but not blocking.
+- Should I check whether `mean, MAC` (2 features, no std) works
+  even better? Quick test. Not urgent.
+
+Next: add wrist TEMP.
+
+--------------
