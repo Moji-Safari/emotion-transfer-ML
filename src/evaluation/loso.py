@@ -1,5 +1,17 @@
-import numpy as np
+"""
+Leave-One-Subject-Out evaluation.
 
+For each subject S:
+    - train on all subjects != S
+    - test on S
+    - record metrics
+
+No subject appears in both training and test for any fold.
+No scaler is fit on test-fold data. No threshold is tuned on
+test-fold data. The evaluation is as honest as we can make it.
+"""
+
+import numpy as np
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
@@ -8,107 +20,84 @@ from sklearn.metrics import (
     confusion_matrix,
 )
 
-from src.models.random_forest_model import create_random_forest
+from src.models.model_factory import MODEL_REGISTRY
 
 
-def run_loso(X, y, groups):
+def run_loso(X, y, groups, model_name="random_forest", verbose=True):
     """
-    Perform Leave-One-Subject-Out evaluation.
-
-    For each subject:
-        - Train on all other subjects.
-        - Test only on the held-out subject.
+    Parameters
+    ----------
+    X : np.ndarray, shape (n_samples, n_features)
+    y : np.ndarray, shape (n_samples,)
+    groups : np.ndarray, shape (n_samples,)
+        Subject identifier per sample.
+    model_name : str
+        Key in MODEL_REGISTRY.
+    verbose : bool
+        Print per-fold progress.
 
     Returns
     -------
-    results : list
-        Per-subject evaluation results.
-
-    all_y_true : numpy.ndarray
-        All true labels.
-
-    all_y_pred : numpy.ndarray
-        All predictions.
+    results : list of dict
+        Per-subject metrics and confusion matrix.
+    y_true_all : np.ndarray
+        Concatenated ground-truth labels across all folds.
+    y_pred_all : np.ndarray
+        Concatenated predictions across all folds.
     """
 
+    if model_name not in MODEL_REGISTRY:
+        raise ValueError(
+            f"Unknown model '{model_name}'. "
+            f"Available: {list(MODEL_REGISTRY)}"
+        )
+
+    make_model = MODEL_REGISTRY[model_name]
     subjects = np.unique(groups)
 
     results = []
-
-    all_y_true = []
-    all_y_pred = []
+    y_true_all, y_pred_all = [], []
 
     for test_subject in subjects:
-
-        print("\n" + "=" * 70)
-        print(f"TEST SUBJECT: {test_subject}")
-        print("=" * 70)
-
         train_mask = groups != test_subject
         test_mask = groups == test_subject
 
-        X_train = X[train_mask]
-        y_train = y[train_mask]
+        X_train, y_train = X[train_mask], y[train_mask]
+        X_test, y_test = X[test_mask], y[test_mask]
 
-        X_test = X[test_mask]
-        y_test = y[test_mask]
-
-        print(f"Training samples: {len(y_train)}")
-        print(f"Testing samples:  {len(y_test)}")
-
-        model = create_random_forest()
-
+        model = make_model()
         model.fit(X_train, y_train)
-
         y_pred = model.predict(X_test)
 
-        accuracy = accuracy_score(y_test, y_pred)
-
-        precision = precision_score(
-            y_test,
-            y_pred,
-            zero_division=0,
-        )
-
-        recall = recall_score(
-            y_test,
-            y_pred,
-            zero_division=0,
-        )
-
-        f1 = f1_score(
-            y_test,
-            y_pred,
-            zero_division=0,
-        )
-
-        matrix = confusion_matrix(
-            y_test,
-            y_pred,
-            labels=[0, 1],
-        )
-
-        print(f"Accuracy:  {accuracy:.4f}")
-        print(f"Precision: {precision:.4f}")
-        print(f"Recall:    {recall:.4f}")
-        print(f"F1 Score:  {f1:.4f}")
-
-        print("\nConfusion Matrix:")
-        print(matrix)
+        acc = accuracy_score(y_test, y_pred)
+        prec = precision_score(y_test, y_pred, zero_division=0)
+        rec = recall_score(y_test, y_pred, zero_division=0)
+        f1 = f1_score(y_test, y_pred, zero_division=0)
+        cm = confusion_matrix(y_test, y_pred, labels=[0, 1])
 
         results.append({
             "subject": test_subject,
-            "accuracy": accuracy,
-            "precision": precision,
-            "recall": recall,
+            "accuracy": acc,
+            "precision": prec,
+            "recall": rec,
             "f1": f1,
+            "n_test": int(len(y_test)),
+            "n_test_baseline": int(np.sum(y_test == 0)),
+            "n_test_stress": int(np.sum(y_test == 1)),
+            "confusion_matrix": cm,
         })
 
-        all_y_true.extend(y_test)
-        all_y_pred.extend(y_pred)
+        y_true_all.extend(y_test.tolist())
+        y_pred_all.extend(y_pred.tolist())
 
-    return (
-        results,
-        np.asarray(all_y_true),
-        np.asarray(all_y_pred),
-    )
+        if verbose:
+            print(
+                f"  {str(test_subject):<5} "
+                f"n={len(y_test):<4} "
+                f"base={np.sum(y_test == 0):<4} "
+                f"stress={np.sum(y_test == 1):<4} "
+                f"acc={acc:.3f}  "
+                f"f1={f1:.3f}"
+            )
+
+    return results, np.asarray(y_true_all), np.asarray(y_pred_all)
