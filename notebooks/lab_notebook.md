@@ -128,3 +128,74 @@ Remaining questions:
 Next: add wrist TEMP.
 
 --------------
+## 2026-10-11 — EDA vs TEMP vs EDA+TEMP
+
+Ran `scripts.compare_eda_temp`.
+
+Headline: EDA+TEMP gets F1(subj) = 0.7545 vs EDA-only 0.7142, a
++0.040 improvement. BUT the paired test gives p = 0.198 — not
+significant.
+
+Surprising: TEMP-only (0.7155) ≈ EDA-only (0.7142). Literature says
+EDA should be much stronger. Two possibilities:
+  - My 3-feature EDA set is weaker than the full 9-feature set
+  - TEMP is picking up a confound (posture, room temp drift)
+
+Question: should I trust TEMP?
+
+Quick answer: not fully, but it's not hurting either. 9/15 subjects
+improved, 5 worse. That's slightly in favor of TEMP.
+
+Decision to make: keep 6-feature EDA+TEMP, or reduce TEMP to
+1 feature (temp_mean)? If temp_mean alone gives most of the gain,
+the wearable model is 4 features — much better.
+
+TODO:
+- [ ] TEMP feature ablation (or at least test temp_mean alone)
+- [ ] Check whether TEMP gain is spread across subjects or driven
+      by 2-3 outliers
+- [ ] If keeping TEMP, decide: 6 features or fewer?
+- [ ] Then move to wrist BVP
+
+Also: note that the +0.040 is not significant with 15 subjects.
+This is a real limitation. If I had 30+ subjects, might cross the
+significance threshold. Or might not — the effect could be small.
+
+
+----------
+## 2026-10-12 — TEMP feature ablation
+
+Ran `scripts.temp_ablation`.
+
+Headline: EDA (3 features) + temp_mean (1 feature) = 4 features,
+gets F1 = 0.7842. That's +0.070 over EDA-only with p = 0.0076.
+This is our first statistically significant improvement.
+
+And it beats the 6-feature EDA+TEMP model (0.7545) by +0.030.
+Fewer features, better result. Classic.
+
+Why does only temp_mean help?
+- Wrist TEMP responds to stress via vasoconstriction -> mean
+  skin temperature shifts over tens of seconds.
+- Within a 30-second window, TEMP variability and slope are
+  dominated by sensor noise and thermal drift.
+- So only the level carries stress info within our window size.
+
+Odd: S13 goes from 0.609 (EDA-only) -> 0.313 (EDA+all TEMP)
+-> 0.778 (EDA+temp_mean). Same EDA features. Only TEMP set
+differs. The 6-feature model is unstable on this subject.
+
+Decision: canonical feature set v3 = {eda_mean, eda_std,
+eda_mean_absolute_change, temp_mean}. 4 features. Best F1 so far,
+wearable-friendly.
+
+TODO:
+- [ ] Investigate S13 anomaly (why did adding temp_std/temp_slope
+      break it?)
+- [ ] Check TEMP confound (is temp_mean really capturing stress,
+      or is it capturing room/posture?)
+- [ ] Move to next modality: wrist BVP for heart-rate features
+- [ ] Consider: does temp_mean help EDA-only more than EDA-only
+      helps temp_mean? (asymmetry test)
+- [ ] Save feature v3 as the canonical baseline for future
+      experiments
