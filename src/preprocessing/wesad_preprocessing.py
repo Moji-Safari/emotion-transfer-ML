@@ -303,5 +303,98 @@ def create_eda_temp_windows(data):
         np.asarray(y),
     )
 
+
+# ============================================================
+# Wrist EDA + TEMP + BVP windows (aligned)
+# ============================================================
+
+def create_all_windows(data):
+    """
+    Create aligned 30-second EDA, TEMP, and BVP windows.
+
+    EDA and TEMP are at 4 Hz -> 120 samples per 30 s window.
+    BVP is at 64 Hz -> 1920 samples per 30 s window.
+
+    The window boundaries in *time* are the same across all three
+    signals: window i starts at second 30*i and ends at 30*(i+1).
+
+    Returns
+    -------
+    eda_windows  : (n_kept, 120)
+    temp_windows : (n_kept, 120)
+    bvp_windows  : (n_kept, 1920)
+    y            : (n_kept,)
+
+    All four arrays are row-aligned.
+    """
+
+    wrist_eda = data["signal"]["wrist"]["EDA"].reshape(-1)
+    wrist_temp = data["signal"]["wrist"]["TEMP"].reshape(-1)
+    wrist_bvp = data["signal"]["wrist"]["BVP"].reshape(-1)
+    labels = data["label"]
+
+    # Trim all signals to their common length in samples
+    n_eda = len(wrist_eda)
+    n_temp = len(wrist_temp)
+    n_bvp = len(wrist_bvp)
+
+    # EDA and TEMP are at 4 Hz; BVP at 64 Hz. Ratio = 16.
+    # Trim EDA and TEMP to the same length.
+    n_wearable = min(n_eda, n_temp)
+
+    # Corresponding BVP length: 16 * n_wearable (approx)
+    # But we should trim both to what's actually available.
+    n_wearable_bvp = n_bvp // 16
+
+    # Final number of samples we can use (in 4 Hz units)
+    n = min(n_wearable, n_wearable_bvp)
+
+    wrist_eda = wrist_eda[:n]
+    wrist_temp = wrist_temp[:n]
+    wrist_bvp = wrist_bvp[:n * 16]  # keep 16 samples per 4 Hz sample
+
+    # Label alignment (same as before)
+    samples_per_window_4hz = WINDOW_SECONDS * WRIST_EDA_FS   # 120
+    samples_per_window_bvp = WINDOW_SECONDS * WRIST_BVP_FS   # 1920
+    label_step = CHEST_FS // WRIST_EDA_FS                    # 175
+
+    label_indices = np.arange(n) * label_step
+    valid = label_indices < len(labels)
+    wrist_eda = wrist_eda[valid]
+    wrist_temp = wrist_temp[valid]
+    wrist_bvp = wrist_bvp[:len(wrist_eda) * 16]
+    label_indices = label_indices[valid]
+
+    eda_labels = labels[label_indices]
+    binary_labels = get_baseline_stress_labels(eda_labels)
+
+    number_of_windows = len(wrist_eda) // samples_per_window_4hz
+
+    EDA_wins, TEMP_wins, BVP_wins, y = [], [], [], []
+
+    for w in range(number_of_windows):
+        s4 = w * samples_per_window_4hz
+        e4 = s4 + samples_per_window_4hz
+
+        s64 = w * samples_per_window_bvp
+        e64 = s64 + samples_per_window_bvp
+
+        label_window = binary_labels[s4:e4]
+        window_label = get_window_label(label_window)
+        if window_label == -1:
+            continue
+
+        EDA_wins.append(wrist_eda[s4:e4])
+        TEMP_wins.append(wrist_temp[s4:e4])
+        BVP_wins.append(wrist_bvp[s64:e64])
+        y.append(window_label)
+
+    return (
+        np.asarray(EDA_wins),
+        np.asarray(TEMP_wins),
+        np.asarray(BVP_wins),
+        np.asarray(y),
+    )
+
 if __name__ == "__main__":
     main()
