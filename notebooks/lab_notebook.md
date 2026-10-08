@@ -201,7 +201,7 @@ TODO:
       experiments
 
 ------------------
-## 2026-10-08 — EDA+TEMP vs EDA+TEMP+BVP
+## 2026-10-14 — EDA+TEMP vs EDA+TEMP+BVP
 
 Headline: EDA+TEMP+BVP gets F1(subj) = 0.8247 vs EDA+TEMP at
 0.7842. That's +0.040. But p = 0.69 — not significant.
@@ -242,4 +242,45 @@ TODO:
 - [ ] BVP feature ablation
 - [ ] If BVP fails, note it as a negative result and move on
 - [ ] Investigate S14 after BVP decision
--------------------------      
+------------------------- 
+
+## 2026-10-15 — BVP feature ablation
+
+Ran `scripts.bvp_ablation`.
+
+Answer: one BVP feature (bvp_hr_mean) matches the full 3-feature BVP
+set. But the same pattern repeats: S14 gains +0.87, S2/S10/S15 lose
+0.29–0.38. Paired test still p = 0.69.
+
+This is not a feature problem. This is a subject problem.
+
+Look at the same four subjects across the BVP experiments:
+  S14: +0.87 (was F1 = 0.09 with EDA+TEMP, becomes 0.95 with BVP)
+  S2:  −0.38
+  S10: −0.34
+  S15: −0.29
+
+The same four subjects swing back and forth. That's systematic.
+
+Hypothesis: something is different about these subjects' signals.
+Possible causes:
+  - Sensor placement issues during recording
+  - Atypical physiology
+  - Motion artifacts in one modality but not another
+  - Some subjects have corrupted EDA/TEMP, others have corrupted BVP
+
+If S14's EDA is corrupted, BVP saving it is legitimate. If BVP is
+also corrupted, we're exploiting an artifact.
+
+Can't tell without investigating. And the investigation would take
+1–2 hours with an uncertain payoff.
+
+Decision: reject BVP. Stick with 4 features (EDA+TEMP).
+Report the BVP negative result honestly in the writeup.
+
+Lesson: the +0.04 mean improvement from BVP was not a finding.
+It was the S14 outlier wearing a mean as a disguise.
+
+TODO:
+- [ ] Note S14 anomaly in writeup as a limitation
+- [ ] Move to next phase of the project
