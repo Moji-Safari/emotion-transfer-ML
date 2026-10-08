@@ -199,3 +199,47 @@ TODO:
       helps temp_mean? (asymmetry test)
 - [ ] Save feature v3 as the canonical baseline for future
       experiments
+
+------------------
+## 2026-10-08 — EDA+TEMP vs EDA+TEMP+BVP
+
+Headline: EDA+TEMP+BVP gets F1(subj) = 0.8247 vs EDA+TEMP at
+0.7842. That's +0.040. But p = 0.69 — not significant.
+
+Then I looked at the per-subject table.
+
+S14: 0.087 → 0.865 (+0.778). Massive.
+S10: 0.955 → 0.639 (−0.316). Broken.
+S2:  0.710 → 0.444 (−0.265). Broken.
+S15: 0.977 → 0.718 (−0.259). Broken.
+
+S14's +0.778 is more than the total sum of deltas (+0.607). The
+average improvement is basically the S14 rescue with everything
+else slightly negative.
+
+This is a textbook outlier-driven result. The mean went up. The
+std went down. But the mechanism is not "BVP helps everyone" —
+it's "BVP rescues one catastrophic subject while damaging three
+good ones."
+
+Lesson (again): look at per-subject tables, not just means.
+
+Question: why does BVP rescue S14? Is it a real physiological
+difference (S14's EDA is unreliable, BVP saves the day), or is it
+chance?
+
+Decision: run a BVP feature ablation. Maybe only one of the three
+BVP features (hr_mean?) is doing useful work, like what happened
+with TEMP. If a smaller BVP set gets the S14 gain without breaking
+S10/S2/S15, it's real. Otherwise drop BVP.
+
+Also: standard deviation dropped from 0.22 to 0.14. That's not
+because the model got more consistent — it's because S14 is no
+longer at F1 = 0.09, so the bottom tail got trimmed. The metric
+is real but the interpretation is wrong.
+
+TODO:
+- [ ] BVP feature ablation
+- [ ] If BVP fails, note it as a negative result and move on
+- [ ] Investigate S14 after BVP decision
+-------------------------      
