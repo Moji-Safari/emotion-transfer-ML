@@ -284,3 +284,99 @@ It was the S14 outlier wearing a mean as a disguise.
 TODO:
 - [ ] Note S14 anomaly in writeup as a limitation
 - [ ] Move to next phase of the project
+-----------------
+## 2026-10-15 — Subject diagnosis
+
+Ran `scripts.diagnose_subjects` on S2, S4, S10, S14, S15, S16.
+
+The key column is Δ = stress mean − baseline mean per signal:
+
+  Subject  EDA Δ     TEMP Δ   BVP Δ
+  S2       +0.561    −2.341   −0.076
+  S4       +2.188    −0.534   −0.188
+  S10      +2.073    −0.266   −0.019
+  S14      +0.051    +0.717   −0.007   ← !!!
+  S15      +1.028    +0.135   −0.001
+  S16      +1.699    +0.734   +0.018
+
+S14's EDA delta is +0.051. Effectively zero. The stress signal
+is not present in S14's EDA.
+
+Everything clicks:
+- S14 fails with EDA+TEMP because there is no EDA stress signal.
+- S14 "succeeds" with EDA+TEMP+BVP because the model is
+  overfitting to noise in S14's BVP features.
+- The +0.87 "improvement" is not learning signal; it's fitting noise.
+
+Also: S2 and S15 have very noisy BVP (std 75.87 and 67.47 vs 29.80
+for S16). Their BVP has motion artifacts or bad sensor contact.
+This explains why they get worse when BVP is added.
+
+S10 remains unexplained: strong EDA, normal BVP stats, but breaks
+with BVP. Might need plot inspection. Not blocking.
+
+Decision: BVP is out. Final model = EDA+TEMP, 4 features.
+
+Lesson: An improvement in the aggregate metric is not a finding
+unless it survives per-subject analysis. S14 was a warning sign,
+not a win. This is the second time this has happened (the first
+was when std looked important but turned out to be noise after
+paired testing).
+
+TODO:
+- [ ] Note in the writeup: S14's EDA signal carries no stress
+      information; the reported F1 for that subject is a
+      limitation of the dataset, not the model.
+- [ ] Move to Phase 8 (Flask API).
+------------
+Boucsein (2012) notes that a subset of individuals exhibit low electrodermal reactivity. More recent work (Thomas & Rabinak, 2025) finds that approximately 16% of healthy adults meet the criteria for SCR non-responders, supporting the classification of S14 as a physiological non-responder rather than a model failure.
+-------------
+## 2026-10-10 — Calibration-aware inference
+
+Ran `scripts.compare_calibration`.
+
+WOW. This worked.
+
+  No calibration: F1 = 0.7842 ± 0.2193
+  Calibrated:     F1 = 0.8617 ± 0.2434
+
++0.078 improvement, p = 0.041 (significant). 12/15 improved.
+Median per-subject F1: 0.778 -> 0.952. The typical subject is
+now almost perfectly classified.
+
+Biggest gains:
+  S2:  +0.243
+  S9:  +0.226
+  S13: +0.222
+  S3:  +0.194
+
+Two subjects got worse:
+  S14: -0.087 (0.087 -> 0.000). Makes sense — no baseline
+       reactivity to calibrate. Calibration can't help when
+       there's nothing to transform.
+  S16: -0.250 (1.000 -> 0.750). Interesting. S16 was perfect
+       before. Why does calibration break it?
+
+Theory for S16: the formula divides by |B_s|. For TEMP, |B_s|
+is ~30. For EDA, |B_s| is ~0.3. After calibration, TEMP features
+get squeezed into a tiny range and EDA features get amplified.
+The SVM's distance metric is dominated by EDA. If S16 was
+relying on TEMP to distinguish its windows, that signal is now
+suppressed.
+
+Possible fix: normalize by baseline std instead of baseline mean.
+  X* = (X - B_s) / sigma_s
+This would give each feature unit variance after calibration.
+
+Lesson: this is the THIRD experiment where looking at per-
+subject results (not just aggregates) was essential. Two of
+three improvements in this project have been broad, one was
+outlier-driven. Always check.
+
+Decision: keep calibration. Report S14 and S16 as limitations.
+
+TODO:
+- [ ] Consider trying std-based normalization to fix S16
+- [ ] Update writeup with calibration as the headline result
+- [ ] Next: Flask API or Deep Learning phase
+--------------
