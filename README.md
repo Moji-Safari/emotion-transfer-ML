@@ -793,10 +793,3 @@ Siegen.
 
 **Last updated:** October 2026
 ```
-
----
-
-## Where to save it
-
-```
-C:\Users\Mojtaba\Desktop\projects\emotion-transfer\README.md
