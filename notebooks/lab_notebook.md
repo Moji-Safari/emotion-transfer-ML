@@ -380,3 +380,110 @@ TODO:
 - [ ] Update writeup with calibration as the headline result
 - [ ] Next: Flask API or Deep Learning phase
 --------------
+
+## 2026-10-10 — Calibration comparison v2 (mean vs std)
+
+Ran `scripts.compare_calibration_v2`.
+
+Result:
+  no_calibration:   F1 = 0.7842
+  calibration_mean: F1 = 0.8617
+  calibration_std:  F1 = 0.9020   ← highest
+
+Std-vs-none: p = 0.0231 (significant)
+Std-vs-mean: p = 0.0745 (not significant)
+
+But look at S3:
+  S3:  0.635 (none) → 0.829 (mean) → 0.174 (std)
+  Δstd−mean = −0.655
+
+S3 collapses under std calibration. That one subject eats the
+entire "std > mean" improvement.
+
+Other notable:
+  S16: 1.000 → 0.750 (mean) → 1.000 (std). Std fixes S16.
+  S14: 0.087 → 0.000 (mean) → 0.429 (std). Std partially rescues.
+
+So the picture is:
+  - Std calibration helps most subjects, especially S14/S16.
+  - It breaks S3.
+  - The paired test can't confirm std > mean because S3's collapse
+    cancels out the gains.
+
+Question: WHY does S3 collapse?
+
+Hypotheses:
+  1. Numerically unstable σ_s for one of S3's features (tiny
+     baseline std → division blows up). Easy to check.
+  2. S3's baseline features genuinely have small variance but its
+     stress features have large variance, so the calibration
+     puts stress windows far outside the training distribution.
+  3. S3's baseline windows aren't representative (recording
+     artifact at the start?).
+
+Cannot decide between these without inspecting S3's raw
+baseline feature statistics.
+
+Decision: before committing to std as the final form, run a
+diagnostic on S3. Look at:
+  - Baseline window count
+  - Per-feature σ_s values
+  - Calibrated stress feature magnitudes
+
+If σ_s is tiny (<1e-3), that's the problem and it's fixable.
+If σ_s is normal, S3 is a genuine modelling failure.
+
+Lesson: the highest mean is not automatically the best model.
+S3's collapse means std calibration has a failure mode that
+mean calibration doesn't. Whether that's acceptable depends on
+what comes next.
+
+TODO:
+- [ ] Run S3 diagnostic
+- [ ] Decide: keep std, keep mean, or stabilise std
+- [ ] After decision: move to Flask API phase
+-------------
+## 2026-10-10 — S3 diagnostic
+
+Ran `scripts.diagnose_s3`.
+
+The diagnostic came back the opposite of what I expected.
+I thought S3 might have tiny sigma_s values (division blows up).
+Instead, S3 has HUGE sigma_s values compared to the others.
+
+  Subject  eda_mean  eda_std  eda_mean_abs_change  temp_mean
+  S3       1.603     0.073    0.0087               0.258
+  S4       0.022     0.0012   0.00017              0.086
+  S14      0.014     0.0022   0.00037              0.067
+  S16      0.007     0.0022   0.00040              0.594
+
+S3's baseline variance is 100-1000x larger across every feature.
+S3's baseline recording was unusually unstable — probably S3 moved
+more during the baseline period, or had sensor contact issues.
+
+Dividing by a large sigma_s compresses S3's calibrated features
+toward zero. Meanwhile, dividing by small sigma_s expands S4's
+and S16's. After calibration, S4's stress features are around 100,
+S3's are around 1. The SVM was trained on S4-scale features and
+can't classify S3-scale features. Collapse.
+
+Root cause: std calibration amplifies between-subject variability
+when baseline variance itself varies across subjects. Dividing by
+a quantity that spans 3 orders of magnitude across subjects makes
+the feature spaces incomparable.
+
+Decision: use MEAN calibration, not std.
+- Mean calibration: F1 = 0.862, significant vs no calibration.
+- Std calibration: F1 = 0.902, but S3 collapses, and the
+  advantage over mean isn't significant.
+
+Mean is the more robust choice. Report std as an exploratory
+alternative with the S3 limitation documented.
+
+Lesson: "highest number wins" is not the right rule. Stability
+matters more than 0.04 F1 in a research prototype.
+
+TODO:
+- [ ] Update metrics files to reflect final decision
+- [ ] Move to Phase 8 (Flask API) with mean-calibrated model
+- [ ] Note S14/S16 limitations in eventual writeup
