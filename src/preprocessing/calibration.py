@@ -121,6 +121,56 @@ class CalibrationTransformerStd:
         X = np.asarray(X, dtype=float)
         return (X - self.baseline_mean) / (self.baseline_std + self.epsilon)
 
+class CalibrationTransformerStdFloored:
+    """
+    Std-based calibration with a floor on sigma_s.
+
+    X* = (X - B_s) / max(sigma_s, floor)
+
+    The floor prevents division by near-zero sigma_s values, which
+    would produce numerically enormous calibrated features.
+
+    Default floor = 0.01. This is chosen to be larger than the
+    smallest sigma_s we saw in diagnostics (S4's eda_mean_abs_change
+    baseline std was 0.00017), while still being small enough to
+    not affect features with normal variance.
+    """
+
+    def __init__(self, floor=0.01):
+        self.floor = floor
+        self.baseline_mean = None
+        self.baseline_std = None
+
+    def fit(self, baseline_windows):
+        baseline_windows = np.asarray(baseline_windows, dtype=float)
+        if baseline_windows.ndim != 2 or baseline_windows.shape[0] < 2:
+            raise ValueError(
+                f"baseline_windows must be 2D with >= 2 rows, "
+                f"got shape {baseline_windows.shape}"
+            )
+        self.baseline_mean = baseline_windows.mean(axis=0)
+        self.baseline_std = baseline_windows.std(axis=0)
+        return self
+
+    def transform(self, X):
+        if self.baseline_mean is None:
+            raise RuntimeError("Call fit() before transform().")
+        X = np.asarray(X, dtype=float)
+        denom = np.maximum(self.baseline_std, self.floor)
+        return (X - self.baseline_mean) / denom
+
+
+def calibrate_subject_std_floored(X_subject, y_subject, floor=0.01):
+    """
+    Same interface as calibrate_subject_std(), but with a floor.
+    """
+    baseline_mask = (y_subject == 0)
+    if baseline_mask.sum() < 2:
+        return X_subject.copy(), False
+    ct = CalibrationTransformerStdFloored(floor=floor)
+    ct.fit(X_subject[baseline_mask])
+    return ct.transform(X_subject), True
+
 
 def calibrate_subject_std(X_subject, y_subject):
     """

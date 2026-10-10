@@ -487,3 +487,95 @@ TODO:
 - [ ] Update metrics files to reflect final decision
 - [ ] Move to Phase 8 (Flask API) with mean-calibrated model
 - [ ] Note S14/S16 limitations in eventual writeup
+
+------------------
+## 2026-10-10 — Floored std calibration
+
+Ran `scripts.compare_calibration_floor`.
+
+The floor (0.01) helps. Results:
+
+  no_cal:          F1 = 0.784 ± 0.219
+  mean_cal:        F1 = 0.862 ± 0.243
+  std_cal:         F1 = 0.902 ± 0.240
+  std_cal_floor:   F1 = 0.907 ± 0.187  ← best
+
+The floor doesn't just improve the mean, it dramatically
+reduces variance (0.240 → 0.187).
+
+Key per-subject effects:
+  S3:  0.17 → 0.50  (+0.33, the intended fix)
+  S9:  1.00 → 0.86  (−0.14, collateral damage)
+  S13: 1.00 → 0.93  (−0.07, collateral)
+  S2:  1.00 → 0.98  (−0.02, minor)
+  S5:  0.98 → 0.95  (−0.02, minor)
+  S14: 0.43 → 0.38  (−0.04, minor)
+
+So the floor is a trade: +0.33 on S3, −0.14 on S9, small losses
+elsewhere. Net gain in mean is +0.005, but the variance drop
+(0.24 → 0.19) is what matters.
+
+Paired tests:
+  std_floor vs no_cal: p = 0.0046  (significant, strongest yet)
+  std_floor vs mean:   p = 0.21    (not significant)
+  std_floor vs std:    p = 0.53    (not significant)
+
+So all three calibration variants are statistically equivalent
+to each other. The differences are per-subject trade-offs.
+
+Decision: adopt std_floor as the canonical model.
+
+Reasons:
+1. Highest mean F1 (0.907)
+2. Lowest variance (0.187)
+3. No subject below 0.38 (mean_cal has S14 = 0.00; std has S3 = 0.17)
+4. Strongest statistical evidence vs no_cal (p = 0.0046)
+5. The floor (0.01) is a defensible technical choice
+
+Lesson: sometimes a small technical fix (the floor) that seems
+irrelevant (S3's σ values were above the floor) has a
+surprisingly large effect. The SVM's decision boundary is very
+sensitive to the tails.
+
+Also: "highest mean" is not the only criterion. std_floor's
+advantage over std is +0.005 in mean but −0.053 in variance.
+The variance reduction is worth more than the mean gain.
+
+---------
+## 2026-10-10 — Deep learning experiment
+
+Ran CNN-LSTM on raw calibrated EDA vs SVM on handcrafted features.
+
+Result: SVM wins decisively.
+  SVM:      F1 = 0.907 ± 0.187
+  CNN-LSTM: F1 = 0.698 ± 0.423
+
+The DL model collapsed to F1 = 0.000 on four subjects:
+  S4, S9, S10, S11 — all previously near-perfect for the SVM.
+
+But it did well on S3 (+0.439) and S14 (+0.568) — the two
+problem subjects. Weird pattern.
+
+Interpretation:
+1. 889 windows is way too few for a CNN-LSTM with 30K params.
+   Ratio ~40:1, model memorizes instead of generalizing.
+2. Training is unstable — some folds converge, some collapse.
+3. The SVM's handcrafted features are already capturing the
+   signal. Raw waveform doesn't add enough to compensate for
+   the DL complexity.
+
+This is the same story as BVP: a positive-looking aggregate
+metric hides per-subject variance that reveals the model
+doesn't work.
+
+Lesson: DL on small tabular/physiological data is hard.
+Theoretically appealing, practically fragile. The literature
+on WESAD-like datasets keeps reporting this ("limited data
+availability and high inter-individual heterogeneity prevent
+training complex deep architectures").
+
+Decision: SVM stays. Document DL as a negative result.
+The S3/S14 partial wins under CNN-LSTM are interesting but
+don't justify adopting DL for the whole pipeline.
+
+------------------
