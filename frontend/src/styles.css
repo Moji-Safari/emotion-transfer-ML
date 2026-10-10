@@ -1,0 +1,355 @@
+:root {
+  --bg:          #FAFAF8;
+  --primary:     #00704A;   /* Starbucks green */
+  --primary-dim: #D4E9DF;
+  --text:        #1A1A1A;
+  --text-muted:  #6B6B6B;
+  --border:      #E5E5E3;
+  --card:        #FFFFFF;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+}
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 48px 32px 24px;
+}
+
+/* ---------- Header ---------- */
+
+.header {
+  margin-bottom: 64px;
+}
+
+.header h1 {
+  font-size: 56px;
+  font-weight: 200;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.header .accent-line {
+  width: 48px;
+  height: 2px;
+  background: var(--primary);
+  margin-bottom: 16px;
+}
+
+.header .subtitle {
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* ---------- Main layout ---------- */
+
+.panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 24px;
+  flex: 1;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+@media (max-width: 1024px) {
+  .panels { grid-template-columns: 1fr; }
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 420px;
+}
+
+.panel-title {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--primary);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--primary-dim);
+}
+
+/* ---------- Buttons ---------- */
+
+button {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  padding: 12px 20px;
+  border-radius: 6px;
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: white;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+button:hover:not(:disabled) {
+  background: #005a3b;
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--primary);
+}
+
+button.secondary:hover:not(:disabled) {
+  background: var(--primary-dim);
+}
+
+.button-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ---------- Host panel ---------- */
+
+.waveform {
+  height: 140px;
+  background: var(--bg);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+.waveform svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.waveform-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mode-toggle {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.mode-toggle button {
+  flex: 1;
+  background: white;
+  color: var(--text-muted);
+  border: none;
+  border-radius: 0;
+  font-size: 12px;
+  padding: 10px;
+}
+
+.mode-toggle button.active {
+  background: var(--primary);
+  color: white;
+}
+
+.mode-toggle button:hover:not(.active) {
+  background: var(--primary-dim);
+  color: var(--primary);
+}
+
+/* ---------- Decision panel ---------- */
+
+.probability {
+  text-align: center;
+  padding: 24px 0;
+}
+
+.probability .value {
+  font-size: 72px;
+  font-weight: 200;
+  color: var(--primary);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.probability .label {
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+.confidence-bar {
+  height: 6px;
+  background: var(--bg);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.confidence-bar .fill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.band-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  background: var(--bg);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.band-display .band-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.band-display .band-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ---------- Guest panel ---------- */
+
+.pulse-visualizer {
+  height: 120px;
+  background: var(--bg);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  position: relative;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pulse-bar {
+  flex: 1;
+  background: var(--primary);
+  border-radius: 2px;
+  min-height: 4px;
+  transition: height 0.3s ease;
+}
+
+.pulse-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.meta-item {
+  padding: 12px;
+  background: var(--bg);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.meta-item .meta-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.meta-item .meta-value {
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--text);
+}
+
+/* ---------- Footer ---------- */
+
+.footer {
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.footer .author {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.footer .author strong {
+  color: var(--primary);
+  font-weight: 500;
+}
+
+/* ---------- Empty state ---------- */
+
+.empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  text-align: center;
+  padding: 40px 20px;
+}
+
+/* ---------- Error ---------- */
+
+.error {
+  background: #FFF4F4;
+  border: 1px solid #F5C2C2;
+  color: #8B2929;
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+}
