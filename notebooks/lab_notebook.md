@@ -613,3 +613,33 @@ TODO:
 - Try per-subject calibration on the chest pipeline.
 - Consider class weighting to boost amusement recall.
 - Add this as a chapter in the report.
+----------------------
+## 2026-10-20 — Chest class weighting
+
+Tested whether boosting amusement class weight improves
+detection. Answer: no.
+
+  balanced:      Macro F1 = 0.66, Amuse F1 = 0.37, Baseline F1 = 0.67
+  amuse × 2:     Macro F1 = 0.58, Amuse F1 = 0.33, Baseline F1 = 0.38
+  amuse × 4:     Macro F1 = 0.53, Amuse F1 = 0.33, Baseline F1 = 0.21
+
+Amusement recall goes up (0.46 → 0.83), but precision drops
+equally. Net F1 stays flat. Meanwhile baseline collapses
+completely — 75% of baseline windows get classified as
+amusement in the ×4 condition.
+
+This is the classic "weighting on inseparable classes" failure.
+The model has no amusement signal to sharpen, so it just
+over-predicts amusement everywhere.
+
+This is a finding. It confirms the valence limitation: the
+features don't contain amusement information, and no weighting
+scheme can invent it. Same conclusion as the ScienceDirect 2026
+paper, but from a different angle (they report low MCC; we show
+weighting can't fix it).
+
+Decision: keep balanced. Move to calibration (which helped the
+wrist pipeline by +0.12 F1).
+
+If calibration also fails for amusement, that's the final word —
+we need EEG for valence.
