@@ -395,6 +395,62 @@ def create_all_windows(data):
         np.asarray(BVP_wins),
         np.asarray(y),
     )
+########################################
+          #CHEST WINDOW
+########################################
+
+    CHEST_FS = 700
+WINDOW_SECONDS_CHEST = 60
+
+def create_chest_windows(data):
+    """
+    Create aligned 60-second windows from chest ECG and RESP.
+
+    Returns
+    -------
+    ecg_windows : (n, 42000)   # 60s * 700Hz
+    resp_windows : (n, 42000)
+    y : (n,)  # 0=baseline, 1=stress, 2=amusement, 3=meditation
+    """
+    ecg = data["signal"]["chest"]["ECG"].reshape(-1)
+    resp = data["signal"]["chest"]["Resp"].reshape(-1)
+    labels = data["label"]
+
+    samples_per_window = WINDOW_SECONDS_CHEST * CHEST_FS  # 42000
+
+    # Label mapping: 1→0, 2→1, 3→2, 4→3, else drop
+    label_map = {1: 0, 2: 1, 3: 2, 4: 3}
+    binary_labels = np.array([label_map.get(l, -1) for l in labels])
+
+    n_windows = len(ecg) // samples_per_window
+    ecg_wins, resp_wins, y = [], [], []
+
+    for w in range(n_windows):
+        s = w * samples_per_window
+        e = s + samples_per_window
+        label_window = binary_labels[s:e]
+
+        # Majority vote, but only if >80% pure
+        unique, counts = np.unique(label_window[label_window >= 0],
+                                   return_counts=True)
+        if len(unique) == 0:
+            continue
+        majority_idx = np.argmax(counts)
+        majority_label = unique[majority_idx]
+        purity = counts[majority_idx] / len(label_window)
+
+        if purity < 0.8:
+            continue  # too mixed
+
+        ecg_wins.append(ecg[s:e])
+        resp_wins.append(resp[s:e])
+        y.append(majority_label)
+
+    return (np.asarray(ecg_wins),
+            np.asarray(resp_wins),
+            np.asarray(y))      
+
+
 
 if __name__ == "__main__":
     main()
