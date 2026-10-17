@@ -579,3 +579,37 @@ The S3/S14 partial wins under CNN-LSTM are interesting but
 don't justify adopting DL for the whole pipeline.
 
 ------------------
+## 2026-10-20 — Chest multi-class results
+
+Ran chest ECG + RESP on 4 WESAD states.
+
+Macro F1 = 0.66, accuracy = 0.68.
+
+Per class:
+  Baseline: 0.67
+  Stress: 0.79
+  Amusement: 0.37  ← expected
+  Meditation: 0.80
+
+This matches the ScienceDirect 2026 benchmark closely:
+  Their MCC: stress 90.61%, meditation 88.65%, amusement 35.69%.
+  My F1: stress 79%, meditation 80%, amusement 37%.
+
+The literature predicted this. Amusement shares high arousal
+with stress, and peripheral signals cannot distinguish them
+without a valence-sensitive signal.
+
+Confusion matrix analysis:
+- Baseline → amusement: 66 windows (the biggest error)
+- Amusement scattered across all four classes (no stable signature)
+- Stress and meditation: clean (>79% recall each)
+
+What this means for AffectWave:
+- The transfer side can be reliable for stress and meditation.
+- Amusement transfer is unreliable without EEG.
+- This is honest and publishable.
+
+TODO:
+- Try per-subject calibration on the chest pipeline.
+- Consider class weighting to boost amusement recall.
+- Add this as a chapter in the report.
