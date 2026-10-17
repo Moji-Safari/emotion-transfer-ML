@@ -402,7 +402,7 @@ def create_all_windows(data):
     CHEST_FS = 700
 WINDOW_SECONDS_CHEST = 60
 
-def create_chest_windows(data):
+def create_chest_windows(data, window_seconds=60):
     """
     Create aligned 60-second windows from chest ECG and RESP.
 
@@ -416,7 +416,7 @@ def create_chest_windows(data):
     resp = data["signal"]["chest"]["Resp"].reshape(-1)
     labels = data["label"]
 
-    samples_per_window = WINDOW_SECONDS_CHEST * CHEST_FS  # 42000
+    samples_per_window = window_seconds * CHEST_FS
 
     # Label mapping: 1→0, 2→1, 3→2, 4→3, else drop
     label_map = {1: 0, 2: 1, 3: 2, 4: 3}
