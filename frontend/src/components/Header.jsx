@@ -7,5 +7,5 @@ export default function Header() {
         Physiological Emotion Transfer
       </div>
     </header>
-  )
+  );
 }

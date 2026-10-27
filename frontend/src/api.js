@@ -31,3 +31,12 @@ export async function predict(features, calibration) {
 export async function generateHaptic(stressProbability) {
   return post('/generate-haptic', { stress_probability: stressProbability })
 }
+
+export async function predictFromConditions(conditions) {
+  return post("/predict-from-conditions", conditions);
+}
+
+
+export async function predictAffectiveState({ baseline, current }) {
+  return post("/predict-affective-state", { baseline, current });
+}

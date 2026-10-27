@@ -4,7 +4,7 @@ export default function Footer() {
       <div className="author">
         A project by <strong>Mojtaba Safari</strong>
       </div>
-      <div>AffectWave · Physiological Emotion Transfer</div>
+      <div>AffectWave · 4-State Haptic Dashboard</div>
     </footer>
-  )
+  );
 }

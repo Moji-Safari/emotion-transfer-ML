@@ -1,87 +1,121 @@
-import { useState, useEffect } from 'react'
-import Header from './components/Header'
-import HostPanel from './components/HostPanel'
-import DecisionPanel from './components/DecisionPanel'
-import GuestPanel from './components/GuestPanel'
-import Footer from './components/Footer'
-import * as api from './api'
+import { useState } from 'react';
+import Header from './components/Header';
+import HostNecklace from './components/HostNecklace';
+import GuestWristband from './components/GuestWristband';
+import HumanMock from './components/HumanMock';
+import PredictionForm from './components/PredictionForm';
+import Footer from './components/Footer';
+import * as api from './api';
+
+const DEFAULT_BASELINE = {
+  heart_rate: 68,
+  hrv_rmssd: 55,
+  hrv_sdnn: 82,
+  respiratory_rate: 14,
+  respiratory_energy: 0.012,
+  respiratory_variability: 0.35,
+  skin_temp_c: 33.0,
+};
+
+const DEFAULT_CURRENT = {
+  heart_rate: 72,
+  hrv_rmssd: 42,
+  hrv_sdnn: 65,
+  respiratory_rate: 16,
+  respiratory_energy: 0.02,
+  respiratory_variability: 0.5,
+  skin_temp_c: 33.0,
+};
+
+function jitter(conditions, pct = 0.08) {
+  const out = {};
+  for (const k of Object.keys(conditions)) {
+    const range = Math.abs(conditions[k]) * pct;
+    const noise = (Math.random() * 2 - 1) * range;
+    out[k] = Math.round((conditions[k] + noise) * 100) / 100;
+  }
+  return out;
+}
+
+function generateBaselineList(base = DEFAULT_BASELINE) {
+  const list = [];
+  for (let i = 0; i < 5; i++) list.push(jitter(base, 0.08));
+  return list;
+}
 
 export default function App() {
-  const [mode, setMode] = useState('baseline')
-  const [calibration, setCalibration] = useState(null)
-  const [result, setResult] = useState(null)
-  const [hapticPattern, setHapticPattern] = useState(null)
-  const [error, setError] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [lastFeatures, setLastFeatures] = useState(null)
+  const [state, setState] = useState('baseline');
+  const [baselineList, setBaselineList] = useState(() => generateBaselineList());
+  const [current, setCurrent] = useState({ ...DEFAULT_CURRENT });
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Verify the API is reachable on load
-  useEffect(() => {
-    api.health().catch((e) => {
-      setError(`Cannot reach API: ${e.message}`)
-    })
-  }, [])
+  function regenerateBaseline() {
+    setBaselineList(generateBaselineList());
+    setResult(null);
+    setError(null);
+  }
 
-  async function handleCalibrate(currentMode) {
-    setError(null)
+  async function handlePredict() {
+    setLoading(true);
+    setError(null);
+    setResult(null);
+
     try {
-      // Build 5 simulated baseline windows
-      const baseline = Array.from({ length: 5 }, () => {
-        // Slightly jittered around the baseline mean
-        return [
-          0.30 + (Math.random() - 0.5) * 0.02,
-          0.05 + (Math.random() - 0.5) * 0.005,
-          0.005 + (Math.random() - 0.5) * 0.0005,
-          33.0 + (Math.random() - 0.5) * 0.2,
-        ]
-      })
-      const cal = await api.calibrate(baseline)
-      setCalibration(cal)
-      setError(null)
+      const res = await api.predictAffectiveState({
+        baseline: baselineList,
+        current,
+      });
+      setResult(res);
+      setState(res.state);
     } catch (e) {
-      setError(`Calibration failed: ${e.message}`)
+      console.error('Predict error:', e);
+      setError(e.message);
+    } finally {
+      setLoading(false);
     }
   }
 
-  async function handleSendWindow(features) {
-    setError(null)
-    setLoading(true)
-    setLastFeatures(features)
-    try {
-      const res = await api.predict(features, calibration)
-      setResult(res)
+  function handleMock(mockConditions) {
+    setCurrent({ ...mockConditions });
+    setResult(null);
+    setError(null);
+    setState('baseline');
+  }
 
-      // Chain into haptic generation
-      const pattern = await api.generateHaptic(res.stress_probability)
-      setHapticPattern(pattern)
-    } catch (e) {
-      setError(`Prediction failed: ${e.message}`)
-    } finally {
-      setLoading(false)
-    }
+  function handleReset() {
+    setBaselineList(generateBaselineList());
+    setCurrent({ ...DEFAULT_CURRENT });
+    setResult(null);
+    setError(null);
+    setState('baseline');
   }
 
   return (
     <div className="app">
       <Header />
 
-      <div className="panels">
-        <HostPanel
-          mode={mode}
-          setMode={setMode}
-          onCalibrate={handleCalibrate}
-          onSendWindow={handleSendWindow}
-          lastFeatures={lastFeatures}
-        />
-        <DecisionPanel
-          result={result}
-          error={error}
-          loading={loading}
-        />
-        <GuestPanel pattern={hapticPattern} />
+      <div className="dashboard-three">
+        <HostNecklace state={state} />
+        <GuestWristband state={state} />
+        <HumanMock onGenerate={handleMock} onReset={handleReset} />
       </div>
+
+      <PredictionForm
+        baselineList={baselineList}
+        onGenerateBaseline={regenerateBaseline}
+        conditions={current}
+        setConditions={setCurrent}
+        onPredict={handlePredict}
+        onReset={handleReset}
+        loading={loading}
+        lastResult={result}
+      />
+
+      {error && <div className="error-block">{error}</div>}
 
       <Footer />
     </div>
-  )
+  );
 }
